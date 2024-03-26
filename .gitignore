@@ -3,3 +3,4 @@ Dataset for multi-channel surface electromyography (sEMG) signals of hand gestur
 Dataset for multi-channel surface electromyography (sEMG) signals of hand gestures/sEMG-dataset/raw/.DS_Store
 Dataset for multi-channel surface electromyography (sEMG) signals of hand gestures/.DS_Store
 .DS_Store
+*.csv
