@@ -198,7 +198,7 @@ class ClassifierModel:
         # build the model using the tuned parameters
         self.model.set_params(**self.tune_model()[0])
         self.model.fit(cp.array(self.X_train), self.y_train)
-        dump(self.model, 'emg_classifier_withr.joblib')
+        dump(self.model, 'emg_classifier.joblib')
         
         print("model built\n")
         return
