@@ -1,5 +1,5 @@
-import random
-import numpy as np 
+import numpy as np
+import cupy as cp
 import pandas as pd
 from scipy import ndimage
 from sklearn.model_selection import train_test_split
@@ -63,7 +63,7 @@ class PrepareData:
         self.filtered_list = []
         self.timed_list = []
         self.root_path = 'own_dataset/'
-
+        
     def import_data(self):
         # import the data from the csv files
         for i in range(4):
@@ -82,8 +82,8 @@ class PrepareData:
             self.timed_list.append([1, self.root_path + f'data5/rock{i}.csv'])
             self.timed_list.append([5, self.root_path + f'data5/fire{i}.csv'])
             self.timed_list.append([6, self.root_path + f'data5/paper{i}.csv'])
+        
         print("data imported\n")
-
         return self.timed_list
 
     def preprocess_data(self):
@@ -116,8 +116,8 @@ class PrepareData:
                     depths_list.append(depths)
                     
                 self.filtered_list.append(np.append(label, np.hstack(depths_list)))
+        
         print("data filtered\n")
-
         return self.filtered_list
 
     def split_data(self):
@@ -174,20 +174,20 @@ class ClassifierModel:
         self.X_test = X_test
         self.y_train = y_train
         self.y_test = y_test
-        self.model = xgb.XGBClassifier(device='cuda', objective='multi:softmax', num_class=9, use_label_encoder=False)
+        self.model = xgb.XGBClassifier(device='cuda')
 
     def tune_model(self):
         # tune the model using GridSearchCV
         param_grid = {
-            'max_depth': [3, 4, 5],
-            'learning_rate': [0.1, 0.01, 0.05],
-            'gamma': [0, 0.25, 1.0],
-            'reg_lambda': [0, 1.0, 10.0],
-            'scale_pos_weight': [1, 3, 5]
+            'tree_method': ['hist'],
+            'max_depth': [3, 5, 7, 10],
+            'learning_rate': [0.001, 0.01, 0.1],
+            'subsample': [0.5, 0.7, 1],
+            'min_child_weight': [1, 3, 5]
         }
-        grid_model = xgb.XGBClassifier(device='cuda', objective='multi:softmax', num_class=9, use_label_encoder=False)
+        grid_model = xgb.XGBClassifier(device='cuda')
         grid_search = GridSearchCV(grid_model, param_grid, scoring='accuracy', n_jobs=-1, cv=5)
-        grid_result = grid_search.fit(self.X_train, self.y_train)
+        grid_result = grid_search.fit(cp.array(self.X_train), self.y_train)
         best_params = grid_result.best_params_
         best_score = grid_result.best_score_
 
@@ -197,27 +197,29 @@ class ClassifierModel:
     def build_model(self):
         # build the model using the tuned parameters
         self.model.set_params(**self.tune_model()[0])
-        self.model.fit(self.X_train, self.y_train)
-        dump(self.model, 'emg_classifier.joblib')
+        self.model.fit(cp.array(self.X_train), self.y_train)
+        dump(self.model, 'emg_classifier_withr.joblib')
         
         print("model built\n")
-        return self.model
+        return
 
     def evaluate_model(self):
         # evaluate the model using the test data
         y_pred = self.model.predict(self.X_test)
+
         print("model evaluated\n")
         print("accuracy score : {}\n".format(accuracy_score(self.y_test, y_pred)))
         print("\nreport :    \n" + classification_report(self.y_test, y_pred))
-        return y_pred
-    
+        return
 
 
 def main(args=None):
-    X_train, X_test, y_train, y_test = PrepareData.prepare_data()
+    p = PrepareData()
+    X_train, X_test, y_train, y_test = p.prepare_data()
+
     clf = ClassifierModel(X_train, X_test, y_train, y_test)
-    model = clf.build_model()
-    result = clf.evaluate_model()
+    clf.build_model()
+    clf.evaluate_model()
 
 if __name__ == '__main__':
     main()
